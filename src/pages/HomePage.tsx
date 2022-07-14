@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
+import RepoCard from '../components/RepoCard'
 import { useDebounce } from '../hooks/debounce'
-import { useSearchUsersQuery } from '../store/github/gitgub.api'
+import { useLazyGetUserReposQuery, useSearchUsersQuery } from '../store/github/gitgub.api'
 
 
 const HomePage = () => {
@@ -8,18 +9,22 @@ const HomePage = () => {
   const [dropdown, setDropdown] = useState(false)
   const debounced =  useDebounce(search)
   const { isLoading, isError, data: users } = useSearchUsersQuery(debounced, {
-    skip: debounced.length < 3
+    skip: debounced.length < 3,
+    refetchOnFocus: true,
   })
-
-  // console.log(data);
-  
+  const [fetchRepos, {isLoading: areReposLoading, data: repos}] = useLazyGetUserReposQuery()
 
   useEffect(() => {
     setDropdown(debounced.length > 3 && users?.length! > 0)
   }, [debounced, users])
   
-  return (
-    <div className='flex justify-center pt-10 mx-auto h-screen w-screen'>
+  const clickHandler = (username: string) => {
+    fetchRepos(username)
+    setDropdown(false)
+  }
+
+  return ( <>
+    <div className='flex flex-column justify-center pt-10 mx-auto h-screen w-screen'>
       {isError && <p className='text-center text-red-400'>Something went wrong</p>}
 
 
@@ -36,14 +41,22 @@ const HomePage = () => {
             {isLoading && <p className='text-center'>Loading...</p>}
             {users?.map(u => (
               <li key={u.id}
+                onClick={() => clickHandler(u.login)}
                 className='py-2 px-4 hover:bg-gray-500 hover:text-white transition-colors cursor-pointer'
               >
                 {u.login}</li>
             ))}
           </ul>
         }
+
+        <div className="container">
+          {areReposLoading && <p className='text-center'>Repos are loading...</p>}
+          {repos?.map(r => <div key={r.id}><RepoCard repos={ r} key={r.id} /></div>)}
+        </div>
+      
       </div>
     </div>
+    </>
   )
 }
 
